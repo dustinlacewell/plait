@@ -1,0 +1,5 @@
+twisted
+structlog
+click
+pycrypto
+pyasn1
