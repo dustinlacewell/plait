@@ -20,16 +20,6 @@ class ViewerContent(urwid.ListBox):
             self.body.set_focus(self.body.focus + 1)
         except: pass
 
-class ViewerItem(urwid.AttrMap):
-    def __init__(self, label):
-        self.label = label
-        self.button = urwid.Button(strip_host(label))
-        super(ViewerItem, self).__init__(self.button, 'button', focus_map='selected')
-        self.content = ViewerContent()
-
-    def write(self, text):
-        self.content.write(text)
-
 class ViewerList(urwid.ListBox):
     def __init__(self, hosts):
         body = [urwid.Text("Hosts", align='center'), urwid.Divider(u"─")]
@@ -52,9 +42,18 @@ class ViewerDisplay(urwid.LineBox):
     def show(self, button, item):
         self.original_widget.original_widget = item.content
 
+class ViewerItemLabel(urwid.AttrMap):
+    def __init__(self, label):
+        self.button = urwid.Button(label)
+        super(ViewerItem, self).__init__(self.button, 'button', focus_map='standout')
 
-class Viewer(urwid.LineBox):
-    def __init__(self, items):
+class ViewerItem(object):
+    def __init__(self, label, widget):
+        self.label = ViewerItemLabel(label)
+        self.widget = widget
+
+class VerticalViewer(urwid.LineBox):
+    def __init__(self):
         stripped = map(strip_host, items)
         max_length = max(map(len, stripped)) + 4
         self.buttons = ViewerList(items)
@@ -98,18 +97,4 @@ class Viewer(urwid.LineBox):
         item.focus_map = {None: 'ready_selected'}
         item.write(text)
         self.loop.draw_screen()
-
-def create_loop(root):
-    palette = [
-        ('button', 'dark gray', ''),
-        ('selected', 'light gray', ''),
-        ('ready', 'dark green', ''),
-        ('ready_selected', 'light green', ''),
-    ]
-    loop = urwid.MainLoop(root, palette,
-                          unhandled_input=root.handle_keys,
-                          handle_mouse=False,
-                          event_loop=urwid.TwistedEventLoop())
-    root.loop = loop
-    return loop
 

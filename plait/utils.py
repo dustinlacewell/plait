@@ -5,6 +5,11 @@ from twisted.conch.client.knownhosts import ConsoleUI
 from twisted.internet.defer import succeed, Deferred
 from twisted.internet import reactor, defer
 
+from plait.errors import TimeoutError
+
+def clean_utf8(data):
+    return data.decode('utf8', 'replace').encode('utf8')
+
 class QuietConsoleUI(ConsoleUI):
 
     def __init__(self, *args, **kwargs):
@@ -95,7 +100,8 @@ def timeout(t, original):
     def late():
         if not original.called:
             original.cancel()
-            d.errback(Exception("Timeout"))
+            msg = "Operation failed to finish within {} seconds.".format(t)
+            d.errback(TimeoutError(msg))
 
     def errback(failure):
         if not timeout.called:
@@ -136,8 +142,7 @@ def retry(times, func, *args, **kwargs):
             run()
         # otherwise errback outgoing deferred
         else:
-            msg = "Failed after {} tries: {}".format(times, str(errorList[0]))
-            deferred.errback(Exception(msg))
+            deferred.errback(errorList[-1])
     run()
     return deferred
 

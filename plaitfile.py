@@ -1,11 +1,15 @@
 from plait.api import run, sudo, RemoteCallError
 from plait.task import task
 
+def touch(file='/tmp/touch'):
+    run("touch {}".format(file))
+
 def uname(flag="a"):
+    print "Kernel info:"
     sudo("uname -" + flag)
 
 def disk_space(filter=""):
-    run("df -h | sed '1 d' | tr -s ' ' | cut -d ' ' -f 1,5 | grep /dev")
+    run("df -h | sed '1 d' | grep ^/dev")
 
 def listdir(path, long=False, all=False):
     cmd = "ls "
@@ -15,22 +19,8 @@ def listdir(path, long=False, all=False):
     if all: cmd += "a"
     run("{} {}".format(cmd, path))
 
-def randomtail():
-    run("cat /dev/urandom")
-
 def dockerps(all=False):
     cmd = "docker ps"
     if all:
         cmd += " -a"
     run(cmd)
-
-def workerlogs(tail=False):
-    run("docker logs " + ("-f" if tail else "") + " worker")
-
-def dockerlogs(tail=False):
-    run("tail " + ("-f" if tail else "") + " /var/log/upstart/docker.log")
-
-def deploy():
-    ls("/")
-    dockerps()
-

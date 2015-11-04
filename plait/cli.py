@@ -14,8 +14,9 @@ import click
 from structlog import PrintLogger
 log = PrintLogger()
 
+from plait.app.console import ConsoleApp
+from plait.app.terminal import TerminalApp
 from plait.runner import PlaitRunner
-from plait.viewer import create_loop, Viewer
 from plait.task import NoSuchTaskError, task
 from plait.errors import *
 from plait.utils import parse_task_calls
@@ -92,8 +93,10 @@ def gather_tasks(plaitfile, task_specs):
 @click.option('--retries', '-r', default=10, help="Times to retry SSH connection", metavar='')
 @click.option('--timeout', '-t', default=3, help="Seconds to wait for SSH", metavar='')
 @click.option('--logging', '-l', is_flag=True, help="Show twisted logging")
+@click.option('--interactive', '-I', is_flag=True, help="Display result graphically")
+
 @click.argument('tasks', nargs=-1)
-def run(host, scale, identity, agent, knownhosts, retries, timeout, logging, tasks):
+def run(host, scale, identity, agent, knownhosts, retries, timeout, logging, tasks, interactive):
     """
     * can be supplied multiple times
     """
@@ -101,23 +104,22 @@ def run(host, scale, identity, agent, knownhosts, retries, timeout, logging, tas
         raise StartupError("Must specify at least one task to execute.")
     if logging:
         logger.startLogging(sys.stdout, setStdout=1)
-    echo_host_count(len(host))
-
-    viewer = Viewer(host)
 
     keys = getKeys(identity)
     known_hosts = getKnownHosts(knownhosts)
     agent = getAgentEndpoint(agent)
     plaitfile = import_plaitfile(find_plaitfile())
     task_calls = gather_tasks(plaitfile, tasks)
-    runner = PlaitRunner(viewer, host, task_calls, scale=scale,
+    runner = PlaitRunner(host, task_calls, scale=scale,
                          retries=retries, timeout=timeout,
                          keys=keys, agent=agent,
                          known_hosts=known_hosts)
-    runner.run()
-    loop = create_loop(viewer)
-    loop.run()
 
+    if interactive:
+        console = ConsoleApp(title="plait 1.0")
+    else:
+        console = TerminalApp()
+    console.run(runner)
 def main():
     try:
         run()

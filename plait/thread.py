@@ -21,4 +21,5 @@ def deferToDaemonThread(f, *args, **kw):
                     args=(d, f, args, kw))
     thread.setDaemon(1)
     thread.start()
+    d.thread = thread
     return d

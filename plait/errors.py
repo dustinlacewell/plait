@@ -4,3 +4,5 @@ class StartupError(PlaitError): pass
 
 class NoSuchTaskError(StartupError): pass
 
+class TimeoutError(PlaitError): pass
+

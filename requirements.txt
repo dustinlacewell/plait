@@ -1,5 +1,8 @@
-twisted
+-e git+https://github.com/twisted/twisted.git#egg=twisted
 structlog
 click
 pycrypto
 pyasn1
+blessings
+blinker
+urwid

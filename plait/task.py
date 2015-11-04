@@ -12,36 +12,33 @@ from plait.thread import deferToDaemonThread
 class NoSuchTaskError(Exception): pass
 
 class Task(object):
+    """
+    Executes a function with the given arguments in a thread.
+    """
     def __init__(self, worker, task_name, task_func, args, kwargs):
-        self.task_name = task_name
-        self.task_func = partial(task_func, worker, args, kwargs)
+        self.name = task_name
+        # bake a partial for the task
+        self.func = task_func
+        self.args = args
+        self.kwargs = kwargs
+        self.partial = partial(task_func, worker, args, kwargs)
 
     def run(self):
-        return deferToDaemonThread(self.task_func)
+        d = deferToDaemonThread(self.partial)
+        return d
+
+    @property
+    def tag(self):
+        args = " ".join(self.args)
+        kwargs = " ".join("{}={}".format(k, v) for k, v in self.kwargs.items())
+        return " ".join([self.name, args, kwargs])
 
 thread_locals = local()
-
-def task_logname():
-    return "/tmp/{}.log".format(thread_locals.worker.host_string).replace('@', '_')
-
-def task_log(msg):
-    log = open(task_logname(), 'a')
-    log.write(msg + " ")
-    log.close()
 
 def task(f):
     def w(worker, args, kwargs):
         thread_locals.worker = worker
-        thread_locals.log = task_log
-        open(task_logname(), 'w').close()
-        task_log("BINDING THREAD")
-        if not worker.viewer.loop:
-            return
-        blockingCFT(reactor, worker.bindThread, current_thread())
-        task_log("WORKING")
-        if not worker.viewer.loop:
-            return
-        f(*args, **kwargs)
-        task_log("TASK FINISHED")
+        blockingCFT(reactor, worker.bindThread, current_thread().ident)
+        return f(*args, **kwargs)
     w.is_task = True
     return w
