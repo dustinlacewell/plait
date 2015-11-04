@@ -7,6 +7,8 @@ from threading import local, current_thread
 from twisted.internet.threads import blockingCallFromThread as blockingCFT
 from twisted.internet import threads, reactor
 
+from plait.thread import deferToDaemonThread
+
 class NoSuchTaskError(Exception): pass
 
 class Task(object):
@@ -15,7 +17,7 @@ class Task(object):
         self.task_func = partial(task_func, worker, args, kwargs)
 
     def run(self):
-        return threads.deferToThread(self.task_func)
+        return deferToDaemonThread(self.task_func)
 
 thread_locals = local()
 
