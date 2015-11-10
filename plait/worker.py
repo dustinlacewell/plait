@@ -1,5 +1,13 @@
 import sys
 
+from twisted.conch.ssh import _kex
+
+_kex._kexAlgorithms = {
+    "diffie-hellman-group-exchange-sha1": _kex._DHGroupExchangeSHA1(),
+    "diffie-hellman-group1-sha1": _kex._DHGroup1SHA1(),
+    "diffie-hellman-group14-sha1": _kex._DHGroup14SHA1(),
+}
+
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
