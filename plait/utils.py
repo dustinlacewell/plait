@@ -1,14 +1,29 @@
-import getpass
+import getpass, sys
 from functools import partial
 
 from twisted.conch.client.knownhosts import ConsoleUI
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed, Deferred, CancelledError
 from twisted.internet import reactor, defer
+
+from blessings import Terminal
 
 from plait.errors import TimeoutError
 
+
 def clean_utf8(data):
     return data.decode('utf8', 'replace').encode('utf8')
+
+
+def collapseLines(text):
+    while u"\n\n" in text:
+        text = text.replace(u"\n\n", u"\n")
+    return text
+
+class Bag(object):
+    """Simple anonymous namedtuple like object"""
+    def __init__(self, **kwds):
+        self.__dict__.update(kwds)
+
 
 class QuietConsoleUI(ConsoleUI):
 
@@ -20,14 +35,22 @@ class QuietConsoleUI(ConsoleUI):
     def prompt(self, text):
         return succeed(True)
 
+
 class CFTResult(object):
     def __init__(self, stdout, stderr=""):
         self.stdout = stdout
         self.stderr = stderr
 
+    def __str__(self):
+        return str(self.stdout) or str(self.stderr)
+
+    def __nonzero__(self):
+        return bool(self.stderr or self.stdout)
+
     @property
     def output(self):
         return self.stdout + self.stderr
+
 
 def parse_host_string(host_string):
     if '@' in host_string:
@@ -41,6 +64,7 @@ def parse_host_string(host_string):
         host = host_string
         port = 22
     return user.encode('utf8'), host.encode('utf8'), port
+
 
 def _escape_split(sep, argstr):
     """
@@ -70,6 +94,7 @@ def _escape_split(sep, argstr):
 
     return startlist + [unfinished] + endlist[1:]  # put together all the parts
 
+
 def parse_task_calls(calls):
     """
     Parse string list into list of tuples: task_name, args, kwargs
@@ -92,22 +117,22 @@ def parse_task_calls(calls):
         parsed_calls.append((call, args, kwargs))
     return parsed_calls
 
+
 def timeout(t, original):
 
     d = defer.Deferred()
     d._suppressAlreadyCalled = True
 
-    def late():
-        if not original.called:
-            original.cancel()
-            msg = "Operation failed to finish within {} seconds.".format(t)
-            d.errback(TimeoutError(msg))
+    def late(*args, **kwargs):
+        original.cancel()
+        if not d.called:
+            d.errback(TimeoutError(t))
 
     def errback(failure):
         if not timeout.called:
             timeout.cancel()
-            original.cancel()
-        d.errback(failure)
+        if not d.called and not failure.check(CancelledError):
+            d.errback(failure.value)
 
     def callback(value):
         if not timeout.called:
@@ -116,7 +141,6 @@ def timeout(t, original):
 
     original.addCallbacks(callback, errback)
     timeout = reactor.callLater(t, late)
-
     return d
 
 def retry(times, func, *args, **kwargs):

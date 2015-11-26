@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import urwid
 
 from blinker import signal
@@ -12,7 +14,7 @@ class WorkerLog(urwid.ListBox):
         urwid.ListBox.__init__(self, walker)
 
     def write(self, text):
-        if text != "\n":
+        if text != "\n" and isinstance(text, basestring):
             text = text.replace("\n", "")
         new_text = urwid.Text(text)
         self.body.append(new_text)
@@ -34,15 +36,16 @@ class ConsoleApp(PlaitApp):
 
     def __init__(self, title="plait"):
         self.tabs = VerticalTabs()
-        local = self.tabs.addTab("localhost", WorkerLog())
-        local.set_white()
         self.root = ConsoleFrame(title)
+        self.screen = urwid.raw_display.Screen(input=open('/dev/tty', 'r'))
         self.loop = urwid.MainLoop(
             self.root, self.default_palette,
+            screen=self.screen,
             handle_mouse=False, unhandled_input=self.unhandled_input,
             event_loop=urwid.TwistedEventLoop())
         self.loop.screen.set_terminal_properties(colors=256)
         self.show(self.tabs, "Remote task hosts")
+        self.failed_workers = []
         super(ConsoleApp, self).__init__()
 
     def run(self, runner):
@@ -63,47 +66,54 @@ class ConsoleApp(PlaitApp):
     def show(self, w, header_text=""):
         self.root.show(w, header_text=header_text)
 
-    def main_stdout(self, sender, data=None):
-        tab = self.tabs.tabs["localhost"]
-        tab.content.write(data)
+    def on_worker_stdout(self, worker, data=None):
+        tab = self.tabs.tabs[worker.label]
+        for line in data.split("\n"):
+            tab.content.write(line)
         self.loop.draw_screen()
 
-    def main_stderr(self, sender, data=None):
-        tab = self.tabs.tabs["localhost"]
-        tab.content.write(data)
-        self.loop.draw_screen()
-
-    def worker_stdout(self, worker, data=None):
+    def on_worker_stderr(self, worker, data=None):
         tab = self.tabs.tabs[worker.label]
         tab.content.write(data)
         self.loop.draw_screen()
 
-    def worker_stderr(self, worker, data=None):
+    def on_worker_connect(self, worker):
         tab = self.tabs.tabs[worker.label]
-        tab.content.write(data)
+        tab.set_cyan()
         self.loop.draw_screen()
 
-    def on_connect(self, worker):
-        signal('stdout').connect(self.worker_stdout, sender=worker)
-        signal('stderr').connect(self.worker_stderr, sender=worker)
+    def on_worker_finish(self, worker):
+        tab = self.tabs.tabs[worker.label]
+        if worker not in self.failed_workers:
+            tab.set_green()
         self.loop.draw_screen()
 
-    def on_finish(self, worker):
+    def on_worker_failure(self, worker, failure=None):
+        if worker.label not in self.tabs.tabs:
+            worker.label = "localhost"
         tab = self.tabs.tabs[worker.label]
-        tab.set_green()
-
-    def on_fail(self, worker, error=None):
-        tab = self.tabs.tabs[worker.label]
+        tab.content.write(repr(failure))
         tab.set_red()
+        self.failed_workers.append(worker)
         self.loop.draw_screen()
 
     def on_task_start(self, worker, task=None):
         tab = self.tabs.tabs[worker.label]
-        tab.set_cyan()
-        tab.content.add(('reversed', task.tag))
+        task_template = u"↪ {task.tag}".format(task=task).encode('utf8')
+        task_header = ('reversed', task_template)
+        tab.content.write(task_header)
         self.loop.draw_screen()
 
-    def on_task_end(self, worker, result=None):
+    def on_task_failure(self, worker, task=None, failure=None):
         tab = self.tabs.tabs[worker.label]
-        tab.content.write("")
+        tab.content.write(str(failure))
+        tab.set_orange()
+        self.failed_workers.append(worker)
         self.loop.draw_screen()
+
+    def on_task_finish(self, worker, task=None, result=None):
+        if result:
+            tab = self.tabs.tabs[worker.label]
+            tab.content.write(str(result))
+            self.loop.draw_screen()
+

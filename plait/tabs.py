@@ -37,7 +37,7 @@ class Tab(urwid.AttrMap):
     """
     A Button that also tracks some other Widget for display in a VerticalTabs widget.
     """
-    def __init__(self, label, content=urwid.SolidFill(' '), color=(8,8,0)):
+    def __init__(self, label, content=urwid.SolidFill(' '), color=(8,8,8)):
         self.label = urwid.Button(label)
         self.content = content
         super(Tab, self).__init__(self.label, 'normal', focus_map='reversed')
@@ -66,7 +66,10 @@ class Tab(urwid.AttrMap):
 
     # some color helpers
     def set_white(self):
-        self.set_color(9, 9, 9)
+        self.set_color(16, 16, 16)
+
+    def set_grey(self):
+        self.set_color(8, 8, 8)
 
     def set_green(self):
         self.set_color(5, 9, 5)
@@ -79,6 +82,9 @@ class Tab(urwid.AttrMap):
 
     def set_orange(self):
         self.set_color(8, 8, 0)
+
+    def set_yellow(self):
+        self.set_color(16, 16, 0)
 
 
 class VerticalTabs(urwid.Columns):

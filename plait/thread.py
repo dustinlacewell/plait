@@ -3,7 +3,7 @@ from twisted.python import failure
 from twisted.internet import defer
 from threading import Thread
 
-def deferToDaemonThread(f, *args, **kw):
+def deferToDaemonThread(name, f, *args, **kw):
     """Run function in thread and return result as Deferred."""
 
     def putResultInDeferred(d, f, args, kw):
@@ -18,6 +18,7 @@ def deferToDaemonThread(f, *args, **kw):
 
     d = defer.Deferred()
     thread = Thread(target=putResultInDeferred,
+                    name=name,
                     args=(d, f, args, kw))
     thread.setDaemon(1)
     thread.start()

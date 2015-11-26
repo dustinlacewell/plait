@@ -7,6 +7,7 @@ from StringIO import StringIO
 from twisted.internet.error import ProcessTerminated
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import  Protocol
+from twisted.internet.threads import blockingCallFromThread as blockingCFT
 
 import blinker
 
@@ -23,6 +24,9 @@ class SignalFile(object):
     def write(self, data):
         self.signal.send(self.sender, data=data)
 
+def thread_name():
+    return current_thread().name
+
 class ThreadedSignalFile(SignalFile):
     """
     Routes any writes to signal emissions by the current thread.
@@ -32,18 +36,19 @@ class ThreadedSignalFile(SignalFile):
         self.softspaces = defaultdict(lambda: 0)
 
     def write(self, data):
-        t = current_thread()
-        self.signal.send(t.ident, data=data)
+        t = thread_name()
+        if t == "MainThread":
+            self.signal.send(t, data=data)
 
     @property
     def softspace(self):
-        t = current_thread()
+        t = thread_name()
         return self.softspaces[t]
 
     @softspace.setter
     @property
     def softspace(self, value):
-        t = current_thread()
+        t = thread_name()
         self.softspaces[t] = value
 
 class LineSpool(object):
