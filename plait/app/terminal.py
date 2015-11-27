@@ -61,18 +61,17 @@ class TerminalApp(PlaitApp):
         """
         Start the runner and block on the reactor.
         """
-        @defer.inlineCallbacks
-        def _(reactor):
-            yield runner.run()
-            # remove strange character that gets printed on exit
-            print "\r"
-        task.react(_)
+        try:
+            task.react(runner.run)
+        except (SystemExit, KeyboardInterrupt):
+            # clean up terminating line upon exit
+            print "\033[1F"
 
     def stop(self):
         """
         Stop the reactor and exit.
         """
-        reactor.stop()
+        raise SystemExit(1)
 
     def sessionFor(self, worker):
         """
@@ -113,7 +112,7 @@ class TerminalApp(PlaitApp):
         return output.encode('utf8')
 
     def printRender(self, render):
-        if self.grep_filter(render):
+        if reactor.running and self.grep_filter(render):
             print render
 
     # runner event handlers
