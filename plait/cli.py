@@ -114,11 +114,11 @@ def getGrepFilter(grep, hide_grep, **kwargs):
         msg = "`-g` and `-G` cannot be used simultaneously."
         raise StartupError(msg)
     elif grep:
-        return lambda x: re.search(grep, x)
+        return lambda x: (re.search(grep, x) is not None)
     elif hide_grep:
-        return lambda x: re.search(hide_grep, x) is None
+        return lambda x: (re.search(hide_grep, x) is None)
     else:
-        return lambda x: re.search(".*", x)
+        return lambda x: (re.search(".*", x) is not None)
 
 def getConnectSettings(scale, retries, timeout, **kwargs):
     return Bag(scale=scale,
