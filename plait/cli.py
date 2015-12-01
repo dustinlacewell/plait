@@ -120,6 +120,9 @@ def getGrepFilter(grep, hide_grep, **kwargs):
     else:
         return lambda x: (re.search(".*", x) is not None)
 
+def getShowFilter(show, **kwargs):
+    return show
+
 def getConnectSettings(scale, retries, timeout, **kwargs):
     return Bag(scale=scale,
                retries=retries,
@@ -145,6 +148,9 @@ def getConnectSettings(scale, retries, timeout, **kwargs):
 @click.option('--scale', '-s',
               default=0, metavar='',
               help="Number of hosts to execute in parallel")
+@click.option('--show', '-S',
+              is_flag=True, metavar='',
+              help="Only show hosts with non-empty output")
 @click.option('--errors', '-e',
               is_flag=True, metavar='',
               help="Only show sessions with an error")
@@ -188,11 +194,12 @@ def run(tasks, interactive, **kwargs):
 
     errorFilter = getErrorFilter(**kwargs)
     grepFilter = getGrepFilter(**kwargs)
+    showFilter = getShowFilter(**kwargs)
 
     if interactive:
         console = ConsoleApp(title="plait 1.0")
     else:
-        console = TerminalApp(errorFilter, grepFilter)
+        console = TerminalApp(errorFilter, grepFilter, showFilter)
 
     console.run(runner)
 def main():

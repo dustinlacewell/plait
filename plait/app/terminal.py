@@ -46,7 +46,7 @@ class TerminalApp(PlaitApp):
     A basic PlaitApp that prints colored Task results to stdout.
     """
 
-    def __init__(self, error_filter, grep_filter):
+    def __init__(self, error_filter, grep_filter, show_filter):
         super(TerminalApp, self).__init__()
         # track the out of tasks for each remote host session
         self.sessions = dict()
@@ -54,6 +54,8 @@ class TerminalApp(PlaitApp):
         self.error_filter = error_filter
         # text based filter
         self.grep_filter = grep_filter
+        # filter tasks with no output
+        self.show_filter = show_filter
         # track progress
         self.finished = 0
 
@@ -62,7 +64,7 @@ class TerminalApp(PlaitApp):
         Start the runner and block on the reactor.
         """
         try:
-            task.react(runner.run)
+            task.react(lambda _: runner.run())
         except (SystemExit, KeyboardInterrupt):
             # clean up terminating line upon exit
             print "\033[1F"
@@ -109,11 +111,16 @@ class TerminalApp(PlaitApp):
         # remove any consecutive newlines to condense output
         output = collapseLines(u"\n".join(lines) + u"\n")
         # return the utf8 encoded response
-        return output.encode('utf8')
+        output = output.encode('utf8')
+        output.show = bool(failure or output)
 
     def printRender(self, render):
-        if reactor.running and self.grep_filter(render):
-            print render
+        if reactor.running:
+            if self.show_filter:
+                if len(render.splitlines()) > 2:
+                    print render
+            else:
+                print render
 
     # runner event handlers
 
@@ -131,7 +138,9 @@ class TerminalApp(PlaitApp):
                 render = self.renderSession(session, t.bold_red(u"⚡ "), failure=failure)
             # only print if errors haven't been disabled and the output matches the
             # current regex filter
-            if self.error_filter != False:
+            if self.error_filter and self.grep_filter(render):
+                self.printRender(render)
+            elif self.error_filter is None:
                 self.printRender(render)
         except Exception as e:
             print "ERROR", e
@@ -178,5 +187,5 @@ class TerminalApp(PlaitApp):
         """
         session = self.sessionFor(worker)
         render = self.renderSession(session, t.bold_green(u"✓ "))
-        if not self.error_filter:
+        if not self.error_filter and self.grep_filter(render):
             self.printRender(render)

@@ -37,8 +37,7 @@ class ThreadedSignalFile(SignalFile):
 
     def write(self, data):
         t = thread_name()
-        if t == "MainThread":
-            self.signal.send(t, data=data)
+        self.signal.send(t, data=data)
 
     @property
     def softspace(self):
