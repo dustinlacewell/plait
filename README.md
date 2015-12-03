@@ -234,9 +234,9 @@ Now we can perform the same multi-host operations with a pipe:
 
 If Plait is not able to connect or authenticate with the remote host for any reason the host will render in red with lightning-bold glyph:
 
-   plait -h root@nosuchhost uname
-   ⚡ root@nosuchhost
-   DNS lookup failed: address 'nosuchhost' not found: [Errno -2] Name or service not known.
+    plait -h root@nosuchhost uname
+    ⚡ root@nosuchhost
+    DNS lookup failed: address 'nosuchhost' not found: [Errno -2] Name or service not known.
 
 # Reporting
 
