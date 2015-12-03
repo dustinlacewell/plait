@@ -85,7 +85,7 @@ This is a simple Plaitfile but let's break it down anyway. There is only one imp
 
 A single Task `uname` is defined and it uses `run` to execute `uname -a` on the remote server. It prints out the result and then returns. `uname` is a unix command for listing information about the kernel version and other host details.
 
-Let's run plait against our server. In these examples we'll be using the details of the `fake_server` **as described in the section above** regarding Docker. If you're using your own server make sure to use the correct username, hostname and port information:
+Let's run our Plait Task against the server. In these examples we'll be using the details of the `fake_server` **as described in the section above** regarding Docker. If you're using your own server make sure to use the **correct username, hostname and port information**:
 
 
     $ plait -h root@0.0.0.0:49154 uname
@@ -96,3 +96,72 @@ Let's run plait against our server. In these examples we'll be using the details
 
 
 Once Plait is finished executing the task, it will print a "host header" indicating whether the Task was a success, whether the Task failed or if there was a connection problem. If there was no connection problem, then each Task is listed followed by its output. Here we can see the output of running `uname` on the remote server.
+
+## Tasks
+
+Tasks are just normal Python functions. They are able to call other Python functions or other Tasks. Tasks may utilize `print` to emit output or can return values. Returned values will be added to the end of the Task's output. For example, changing the `plaitfile.py` to use `return` instead of `print` produces the same report:
+
+    from plait.api import run
+
+    def uname():
+        return run('uname -a')
+
+Then running it:
+
+    $ plait -h root@0.0.0.0:49154 uname
+
+    ✓  root@0.0.0.0:32768
+    ↳  uname
+    Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+## Multiple Tasks
+
+Let's add another task to our `plaitfile.py`:
+
+    from plait.api import run
+
+    def uname():
+        return run('uname -a')
+
+    def disk_space():
+        return run('df -h')
+
+Plait allows for calling multiple Tasks, sequentially. Each Task output is listed:
+
+    plait -h root@0.0.0.0:32768 uname disk_space
+    ✓ root@0.0.0.0:32768
+    ↳ uname
+    Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+    ↳ disk_space
+    Filesystem                                              Size  Used Avail Use% Mounted on
+    rootfs                                                  216G  108G   98G  53% /
+    none                                                    216G  108G   98G  53% /
+    tmpfs                                                   3.9G     0  3.9G   0% /dev
+    shm                                                      64M     0   64M   0% /dev/shm
+    tmpfs                                                   3.9G     0  3.9G   0% /sys/fs/cgroup
+    /dev/disk/by-uuid/3be76936-38f6-45fb-89a9-451186428331  216G  108G   98G  53% /etc/hosts
+    tmpfs                                                   3.9G     0  3.9G   0% /proc/kcore
+    tmpfs                                                   3.9G     0  3.9G   0% /proc/latency_stats
+    tmpfs                                                   3.9G     0  3.9G   0% /proc/timer_stats
+
+## Task Arguments
+
+Tasks can also take arguments which can be passed in on the commandline. Let's adjust the `disk_space` Task to filter for specific filesystems:
+
+    from plait.api import run
+
+    def uname():
+        return run('uname -a')
+
+    def disk_space(*args):
+        return run('df -h {}'.format(' '.join(args)))
+
+This new `disk_space` Task now takes any number of arguments. Those arguments are now interpolated into the eventual `df -h` shell command ran on the remote host. We can pass these arguments to the Task on the commandline by following the Task name with a colon `:` and separating each argument with a comma `,`:
+
+    plait -h root@0.0.0.0:32768 disk_space:/,/etc/hosts
+    ✓ root@0.0.0.0:32768
+    ↳ disk_space / /etc/hosts
+    Filesystem                                              Size  Used Avail Use% Mounted on
+    none                                                    216G  108G   98G  53% /
+    /dev/disk/by-uuid/3be76936-38f6-45fb-89a9-451186428331  216G  108G   98G  53% /etc/hosts
+
