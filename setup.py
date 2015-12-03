@@ -7,7 +7,7 @@ install_requires = filter(lambda d: not d.startswith('-e'), open("requirements.t
 
 setup(
     name='plait',
-    version='0.1.0',
+    version='0.2.0',
     description='execute ssh commands against hosts in parallel',
     author='Dustin Lacewell',
     author_email='dlacewell@gmail.com',
