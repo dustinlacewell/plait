@@ -100,7 +100,7 @@ Once Plait is finished executing the task, it will print a "host header" indicat
 
 ## Tasks
 
-Tasks are just normal Python functions. They are able to call other Python functions or other Tasks. Tasks may utilize `print` to emit output or can return values. Returned values will be added to the end of the Task's output. For example, changing the `plaitfile.py` to use `return` instead of `print` produces the same report:
+**Tasks are just normal Python functions.** They are able to call other Python functions or other Tasks. Tasks may utilize `print` to emit output or can return values. Returned values will be added to the end of the Task's output. For example, changing the `plaitfile.py` to use `return` instead of `print` produces the same report:
 
     from plait.api import run
 
@@ -168,7 +168,7 @@ This new `disk_space` Task now takes any number of arguments. Those arguments ar
 
 ## Task Warnings
 
-Any Tasks that result in an exception will appear differently than successful ones. Let's create a Task for demonstration purposes
+Any Tasks that result in an exception **will appear differently than successful ones**. Let's create a Task for demonstration purposes
 
     def fail():
         raise Exception("This is a test exception!")
@@ -180,7 +180,7 @@ If we call this Task we see that the output changes slightly. You can't see it h
     ↳ fail
     This is a test exception!
 
-If multiple tasks are passed, any exceptional Task will mark the whole Host with as warning, and no subsequent Tasks will be executed:
+If multiple tasks are passed, any exceptional Task will mark the whole Host with as warning, **and no subsequent Tasks will be executed**:
 
     plait -h root@0.0.0.0:32768 fail uname
     ✗ root@0.0.0.0:32768
@@ -190,7 +190,7 @@ If multiple tasks are passed, any exceptional Task will mark the whole Host with
 
 # Multiple Servers
 
-Plait supports executing Tasks on multiple hosts in parallel and does so fairly efficiently. To execute tasks on multiple hosts you can pass additional `-h` flags. Let's create another SSHd server container:
+Plait supports executing Tasks on **multiple hosts in parallel** and does so fairly efficiently. To execute tasks on multiple hosts you can pass additional `-h` flags. Let's create another SSHd server container:
 
     $ docker run -d -P --name fake_server2 rastasheep/ubuntu-ssh
 
@@ -214,7 +214,7 @@ Now we can execute tasks on multiple hosts:
 
 ## Piping hosts
 
-If you have many hosts it may be inconvenient to pass them all as `-h` flags. Another option is to store the host strings inside of a file and pipe them into Plait. Let's create a file `/tmp/hosts.txt` with the following content:
+If you have many hosts it may be inconvenient to pass them all as `-h` flags. Another option is to store the host strings inside of a file and **pipe them into Plait**. Let's create a file `/tmp/hosts.txt` with the following content:
 
     root@0.0.0.0:32768
     root@0.0.0.0:32769
@@ -290,7 +290,7 @@ If there are Tasks with specific output that you wish to hide you can pass the `
 
 # Controlling Concurrency
 
-By default Plait will attempt to execute Tasks across all hosts concurrently. However, if there are many hosts Plait may experience large amounts of "contention". Contention can slow down individual tasks. If the contention is bad enough, Plait's connections will timeout. In order to reduce the amount of concurrency you can pass the `-s $NUM` flag which will control how many hosts to process at any given time.
+By default Plait will attempt to execute Tasks **across all hosts concurrently**. However, if there are many hosts Plait may experience large amounts of "contention". Contention can slow down individual tasks. If the contention is bad enough, Plait's connections will timeout. In order to reduce the amount of concurrency you can pass the `-s $NUM` flag which will control how many hosts to process at any given time.
 
 The timeout for connections is set to 10 seconds by default. You can change this default with the `-t $SECONDS` flag.
 
