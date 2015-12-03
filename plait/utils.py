@@ -53,7 +53,7 @@ def parse_host_string(host_string):
     else:
         host = host_string
         port = 22
-    return user.encode('utf8'), host.encode('utf8'), port
+    return user.encode('utf8'), host.encode('utf8'), int(port)
 
 
 def _escape_split(sep, argstr):
@@ -113,19 +113,22 @@ def timeout(t, original):
     d = defer.Deferred()
     d._suppressAlreadyCalled = True
 
+    timeout = None
+
     def late(*args, **kwargs):
         original.cancel()
         if not d.called:
             d.errback(TimeoutError(t))
 
     def errback(failure):
-        if not timeout.called:
+        print "FAILURE", failure
+        if timeout and not timeout.called:
             timeout.cancel()
         if not d.called and not failure.check(CancelledError):
             d.errback(failure.value)
 
     def callback(value):
-        if not timeout.called:
+        if timeout and not timeout.called:
             timeout.cancel()
         d.callback(value)
 
