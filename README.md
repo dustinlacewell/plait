@@ -204,12 +204,12 @@ As before we need to discover the port that Docker assigned for the container so
 Now we can execute tasks on multiple hosts:
 
     plait -h root@0.0.0.0:32768 -h root@0.0.0.0:32769 uname
-    \u2713  root@0.0.0.0:32768
-    \u21aa  uname
+    ✓ root@0.0.0.0:32768
+    ↳  uname
     Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
 
-    \u2713  root@0.0.0.0:32769
-    \u21aa  uname
+    ✓ root@0.0.0.0:32769
+    ↳  uname
     Linux 07ae69833024 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
 
 ## Piping hosts
@@ -222,12 +222,12 @@ If you have many hosts it may be inconvenient to pass them all as `-h` flags. An
 Now we can perform the same multi-host operations with a pipe:
 
     cat /tmp/hosts.txt | plait uname
-    \u2713  root@0.0.0.0:32768
-    \u21aa  uname
+    ✓ root@0.0.0.0:32768
+    ↳  uname
     Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
 
-    \u2713  root@0.0.0.0:32769
-    \u21aa  uname
+    ✓ root@0.0.0.0:32769
+    ↳  uname
     Linux 07ae69833024 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
 
 ## Connection Failures
@@ -235,5 +235,63 @@ Now we can perform the same multi-host operations with a pipe:
 If Plait is not able to connect or authenticate with the remote host for any reason the host will render in red with lightning-bold glyph:
 
    plait -h root@nosuchhost uname
-   \u26a1  root@nosuchhost
+   ⚡ root@nosuchhost
    DNS lookup failed: address 'nosuchhost' not found: [Errno -2] Name or service not known.
+
+# Reporting
+
+One of the advantages of Plait over similar tools is its functionality related to Task result reporting. You have already seen some of the ways that Plait makes it very easy to visually identify what Tasks succeeded, which failed and which were unable to connect. The following are the ways in which a Task can complete:
+
+  * **Failure** - Plait was unable to connect to the remote host to perform any work
+  * **Warning** - A Task raised an exception while running
+  * **Empty** - A Task finished without error but produced no output
+  * **Success** - A Task finished without error and produced output
+
+## Summary Report
+
+By passing the `-R` flag, Plait will print a Summary Report of how many of each exit condition was experienced:
+
+    plait -R -h root@0.0.0.0:32768 -h root@0.0.0.0:32769 -h root@nosuchhost uname
+    ⚡  root@nosuchhost
+    DNS lookup failed: address 'nosuchhost' not found: [Errno -2] Name or service not known.
+
+    ✓  root@0.0.0.0:32768
+    ↳ uname
+    Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+    ✓  root@0.0.0.0:32769
+    ↳ uname
+    Linux 07ae69833024 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+    Plait results:
+    ↳  ✓ 2/0/2, ✗ 0, ⚡ 1
+
+The first grouping of numbers after the `✓` indicate `success`/`empty`/`total successes`.
+
+The second and third groups show `warnings` and `failures` respectively.
+
+## Failures and Warnings
+
+If you interested in the hosts that are unreachable or otherwise did not complete succesfully, you can pass the `-e` flag which will **only show failures and warnings**.
+
+If you do not want to see warnings or failures you can pass `-E`.
+
+## Empties
+
+Plait maintains a concept of the "empty success" wherin a Task does not raise an exception but does not produce any output either. This is useful for calling Tasks on the commandline which are usually called from other Tasks and expected to return data or return None.
+
+If you are only interested in Tasks that produced output you can pass the `-S` flag.
+
+## Grepping
+
+If there Tasks with specific output that interest you, you can pass the `-g $PATTERN` flag which will only show Tasks who's output matches the provided regular expression.
+
+If there are Tasks with specific output that you wish to hide you can pass the `-G $PATTERN` flag.
+
+# Controlling Concurrency
+
+By default Plait will attempt to execute Tasks across all hosts concurrently. However, if there are many hosts Plait may experience large amounts of "contention". Contention can slow down individual tasks. If the contention is bad enough, Plait's connections will timeout. In order to reduce the amount of concurrency you can pass the `-s $NUM` flag which will control how many hosts to process at any given time.
+
+The timeout for connections is set to 10 seconds by default. You can change this default with the `-t $SECONDS` flag.
+
+Plait will attempt to connect to a host 2 times by default. You can change this default with the `-r $RETRIES` flag.
