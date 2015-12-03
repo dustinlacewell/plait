@@ -12,7 +12,7 @@ log = get_logger()
 from plait.spool import ThreadedSignalFile
 from plait.worker import PlaitWorker
 from plait.utils import retry
-from plait.errors import TimeoutError, StartupError
+from plait.errors import TimeoutError, StartupError, TaskError
 
 def flipio():
     sys._stdout, sys.stdout = sys.stdout, sys._stdout
@@ -24,7 +24,7 @@ def write(msg):
     flipio()
 
 class PlaitRunner(object):
-    def __init__(self, hosts, tasks, settings):
+    def __init__(self, hosts, tasks, settings, all_tasks=False):
         self.workers = {}
         self.hosts = hosts
         self.tasks = tasks
@@ -34,6 +34,7 @@ class PlaitRunner(object):
         self.keys = settings.keys
         self.agent = settings.agent_endpoint
         self.known_hosts = settings.known_hosts
+        self.all_tasks = all_tasks
 
     def installThreadIO(self):
         pass
@@ -48,7 +49,8 @@ class PlaitRunner(object):
     def makeWorker(self):
         return PlaitWorker(self.tasks,
                            self.keys, self.agent,
-                           self.known_hosts, self.timeout)
+                           self.known_hosts, self.timeout,
+                           self.all_tasks)
 
     @defer.inlineCallbacks
     def runWorker(self, host_string):
@@ -60,6 +62,8 @@ class PlaitRunner(object):
             # run all tasks within the worker
             yield worker.run()
             signal('worker_finish').send(worker)
+        except TaskError as e:
+            signal('task_failure').send(worker, task=e.task, failure=e.failure)
         except (TimeoutError, error.ConnectingCancelledError) as e:
             msg = "Connection timedout after {} {}-second tries."
             msg = msg.format(self.retries + 1, self.timeout)

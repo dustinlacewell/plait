@@ -36,20 +36,10 @@ class QuietConsoleUI(ConsoleUI):
         return succeed(True)
 
 
-class CFTResult(object):
-    def __init__(self, stdout, stderr=""):
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def __str__(self):
-        return str(self.stdout) or str(self.stderr)
-
-    def __nonzero__(self):
-        return bool(self.stderr or self.stdout)
-
+class AttributeString(str):
     @property
-    def output(self):
-        return self.stdout + self.stderr
+    def stdout(self):
+        return str(self)
 
 
 def parse_host_string(host_string):

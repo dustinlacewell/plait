@@ -1,5 +1,6 @@
 
 import os, imp, getpass, sys, traceback, re
+from pprint import pprint
 
 from twisted.python.filepath import FilePath
 from twisted.internet.task import react
@@ -120,8 +121,17 @@ def getGrepFilter(grep, hide_grep, **kwargs):
     else:
         return lambda x: (re.search(".*", x) is not None)
 
-def getShowFilter(show, **kwargs):
-    return show
+def getQuietFilter(quiet, **kwargs):
+    return quiet
+
+def getQuietReport(quiet_report, **kwargs):
+    return quiet_report
+
+def getShowReport(report, **kwargs):
+    return report
+
+def getAllTasks(all_tasks, **kwargs):
+    return all_tasks
 
 def getConnectSettings(scale, retries, timeout, **kwargs):
     return Bag(scale=scale,
@@ -133,24 +143,30 @@ def getConnectSettings(scale, retries, timeout, **kwargs):
 
 @click.command()
 @click.argument('tasks', nargs=-1)
-@click.option('--interactive', '-I',
-              is_flag=True,
-              help="Display results graphically")
-@click.option('--plaitfile', '-p',
-              default=None, metavar='',
-              help="Read tasks from specified file")
 @click.option('--host', '-h',
               multiple=True, metavar='*',
               help="[$USER@]hostname[:22]")
 @click.option('--hostfile', '-H',
               default=False, metavar='',
               help="Read hosts from a line delimited file")
-@click.option('--scale', '-s',
-              default=0, metavar='',
-              help="Number of hosts to execute in parallel")
-@click.option('--show', '-S',
+@click.option('--plaitfile', '-p',
+              default=None, metavar='',
+              help="Read tasks from specified file")
+@click.option('--interactive', '-I',
+              is_flag=True,
+              help="Display results graphically")
+@click.option('--all-tasks', '-A',
               is_flag=True, metavar='',
-              help="Only show hosts with non-empty output")
+              help="Tasks with no output result in a warning")
+@click.option('--report', '-R',
+              is_flag=True, metavar='',
+              help="Print summary report")
+@click.option('--quiet', '-q',
+              is_flag=True, metavar='',
+              help="Hide hosts that produce no result")
+@click.option('--quiet-report', '-Q',
+              is_flag=True, metavar='',
+              help="Only print summary report (implies -R)")
 @click.option('--errors', '-e',
               is_flag=True, metavar='',
               help="Only show sessions with an error")
@@ -163,6 +179,15 @@ def getConnectSettings(scale, retries, timeout, **kwargs):
 @click.option('--hide-grep', '-G',
               default=None, metavar='',
               help="Hide sessions matching a pattern")
+@click.option('--scale', '-s',
+              default=0, metavar='',
+              help="Number of hosts to execute in parallel")
+@click.option('--retries', '-r',
+              default=1, metavar='',
+              help="Times to retry SSH connection")
+@click.option('--timeout', '-t',
+              default=10, metavar='',
+              help="Seconds to wait for SSH")
 @click.option('--identity', '-i',
               default="~/.ssh/id_rsa", metavar="*",
               help="Public key to use")
@@ -172,12 +197,6 @@ def getConnectSettings(scale, retries, timeout, **kwargs):
 @click.option('--knownhosts', '-k',
               default="~/.ssh/known_hosts", metavar='',
               help="File with authorized hosts")
-@click.option('--retries', '-r',
-              default=1, metavar='',
-              help="Times to retry SSH connection")
-@click.option('--timeout', '-t',
-              default=10, metavar='',
-              help="Seconds to wait for SSH")
 @click.option('--logging', '-l',
               is_flag=True,
               help="Show twisted logging")
@@ -190,18 +209,24 @@ def run(tasks, interactive, **kwargs):
     tasks = getTasks(tasks, **kwargs)
     hosts = getHosts(**kwargs)
     connect_settings = getConnectSettings(**kwargs)
-    runner = PlaitRunner(hosts, tasks, connect_settings)
+    all_tasks = getAllTasks(**kwargs)
+    runner = PlaitRunner(hosts, tasks, connect_settings, all_tasks)
 
-    errorFilter = getErrorFilter(**kwargs)
-    grepFilter = getGrepFilter(**kwargs)
-    showFilter = getShowFilter(**kwargs)
+    error_filter = getErrorFilter(**kwargs)
+    grep_filter = getGrepFilter(**kwargs)
+    quiet_filter = getQuietFilter(**kwargs)
+
+    show_report = getShowReport(**kwargs)
+    quiet_report = getQuietReport(**kwargs)
 
     if interactive:
-        console = ConsoleApp(title="plait 1.0")
+        app = ConsoleApp(title="plait 1.0")
     else:
-        console = TerminalApp(errorFilter, grepFilter, showFilter)
+        app = TerminalApp(error_filter, grep_filter, quiet_filter,
+                          report=show_report, report_only=quiet_report)
 
-    console.run(runner)
+    app.run(runner)
+
 def main():
     try:
         run()

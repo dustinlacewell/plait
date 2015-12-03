@@ -21,6 +21,7 @@ class Task(object):
         self.func = task_func
         self.args = args
         self.kwargs = kwargs
+        self.has_output = False
 
     def run(self):
         return deferToDaemonThread(self.uid, self.func, self.worker, *self.args, **self.kwargs)

@@ -17,7 +17,7 @@ def run(cmd, fail=False):
     worker = thread_locals.worker
     # block until result is available or main thread dies
     result = blockingCFT(reactor, worker.execFromThread, cmd)
-    if result.stderr.strip() and fail: # stderr indicates a remote error
+    if result.failed and fail:
         exception = RemoteCallError(result.stderr)
         exception.result = result
         stack = inspect.stack()[1]

@@ -19,7 +19,7 @@ from blinker import signal
 from plait.task import Task
 from plait.spool import SpoolingSignalProtocol, SpoolingProtocol
 from plait.errors import TimeoutError, TaskError
-from plait.utils import parse_host_string, QuietConsoleUI, CFTResult, timeout
+from plait.utils import parse_host_string, QuietConsoleUI, timeout, AttributeString
 
 # default channel does send ext bytes to protocol (stderr)
 class WorkerChannel(_CommandChannel):
@@ -69,7 +69,7 @@ class PlaitWorker(Factory):
 
     """
 
-    def __init__(self, tasks, keys, agent, known_hosts, timeout):
+    def __init__(self, tasks, keys, agent, known_hosts, timeout, all_tasks=False):
         self.proto = None
         self.host_string = None
         self.user = None
@@ -80,7 +80,9 @@ class PlaitWorker(Factory):
         self.agent = None
         self.known_hosts = None
         self.timeout = timeout
+        self.all_tasks = all_tasks
         self.lines = 0
+        self.tasks_by_uid = dict()
 
     def __str__(self):
         return self.host_string
@@ -126,9 +128,13 @@ class PlaitWorker(Factory):
         return "{}@{}".format(self.user, self.host)
 
     def stdout(self, thread_name, data=None):
+        task = self.tasks_by_uid[thread_name]
+        task.has_output = True
         signal('worker_stdout').send(self, data=data)
 
     def stderr(self, thread_name, data=None):
+        task = self.tasks_by_uid[thread_name]
+        task.has_output = True
         signal('worker_stderr').send(self, data=data)
 
     def runTask(self, task):
@@ -147,14 +153,22 @@ class PlaitWorker(Factory):
         # execute each task in sequence
         for name, func, args, kwargs in self.tasks:
             task = Task(self, name, func, args, kwargs)
+            self.tasks_by_uid[task.uid] = task
             result = yield self.runTask(task)
             # tasks will return an Exception is there was a failure
             if isinstance(result, BaseException):
-                signal('task_failure').send(self, task=task, failure=result)
+                # wrap it so the runner recognizes this as an expected exception
+                # and doesn't emit generic worker exception signals
                 e = TaskError("Task `{}` failed.".format(name))
-                e.error = result
+                e.task = task
+                e.failure = result
                 raise e
             # otherwise it may optionally return a completion value
+            elif self.all_tasks and not (result or task.has_output):
+                e = TaskError("Task returned empty result.")
+                e.task = task
+                e.failure = e
+                raise e
             else:
                 signal('task_finish').send(self, task=task, result=result)
 
@@ -165,11 +179,16 @@ class PlaitWorker(Factory):
         """
         ep = self.makeCommandEndpoint(command)
         yield ep.connect(self)
+        failed = False
         try:
-            result = yield self.protocol.finished
+            yield self.protocol.finished
         except error.ProcessTerminated as e:
-            stdout, stderr = self.protocol.flush()
-            raise Exception(stderr)
+            failed = True
         # flush output from proto accumulated during execution
         stdout, stderr = self.protocol.flush()
-        defer.returnValue(CFTResult(stdout, stderr))
+        result = AttributeString(stdout)
+        result.stderr = stderr
+        result.failed = failed
+        result.succeeded = not failed
+        result.command = command
+        defer.returnValue(result)
