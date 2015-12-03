@@ -70,6 +70,7 @@ You should now be able to login to the `fake_server` **as root** without a passw
 
     $ ssh -o PasswordAuthentication=no -p 49154 root@host
 
+
 # Tasks and the Plaitfile
 
 Plait's job is to execute Tasks. Those Tasks are written by you to perform the work you want to execute on remote hosts. Those Tasks are contained within a file called `plaitfile.py`. Plait will look for this file in the directory where it is invoked - otherwise **you can specify the Plaitfile to use** with the `-p` flag.
@@ -165,3 +166,74 @@ This new `disk_space` Task now takes any number of arguments. Those arguments ar
     none                                                    216G  108G   98G  53% /
     /dev/disk/by-uuid/3be76936-38f6-45fb-89a9-451186428331  216G  108G   98G  53% /etc/hosts
 
+## Task Warnings
+
+Any Tasks that result in an exception will appear differently than successful ones. Let's create a Task for demonstration purposes
+
+    def fail():
+        raise Exception("This is a test exception!")
+
+If we call this Task we see that the output changes slightly. You can't see it here, but Task warnings will be output in yellow:
+
+    plait -h root@0.0.0.0:32768 fail
+    ✗ root@0.0.0.0:32768
+    ↳ fail
+    This is a test exception!
+
+If multiple tasks are passed, any exceptional Task will mark the whole Host with as warning, and no subsequent Tasks will be executed:
+
+    plait -h root@0.0.0.0:32768 fail uname
+    ✗ root@0.0.0.0:32768
+    ↳ fail
+    This is a test exception!
+
+
+# Multiple Servers
+
+Plait supports executing Tasks on multiple hosts in parallel and does so fairly efficiently. To execute tasks on multiple hosts you can pass additional `-h` flags. Let's create another SSHd server container:
+
+    $ docker run -d -P --name fake_server2 rastasheep/ubuntu-ssh
+
+As before we need to discover the port that Docker assigned for the container so that we can connect to it:
+
+    $ docker port fake_server2 22
+    0.0.0.0:32769
+
+**Remember**: install your keypair so you are not prompted for a password!
+
+Now we can execute tasks on multiple hosts:
+
+    plait -h root@0.0.0.0:32768 -h root@0.0.0.0:32769 uname
+    \u2713  root@0.0.0.0:32768
+    \u21aa  uname
+    Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+    \u2713  root@0.0.0.0:32769
+    \u21aa  uname
+    Linux 07ae69833024 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+## Piping hosts
+
+If you have many hosts it may be inconvenient to pass them all as `-h` flags. Another option is to store the host strings inside of a file and pipe them into Plait. Let's create a file `/tmp/hosts.txt` with the following content:
+
+    root@0.0.0.0:32768
+    root@0.0.0.0:32769
+
+Now we can perform the same multi-host operations with a pipe:
+
+    cat /tmp/hosts.txt | plait uname
+    \u2713  root@0.0.0.0:32768
+    \u21aa  uname
+    Linux 26d61d0e567f 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+    \u2713  root@0.0.0.0:32769
+    \u21aa  uname
+    Linux 07ae69833024 3.13.0-65-generic #106-Ubuntu SMP Fri Oct 2 22:08:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+## Connection Failures
+
+If Plait is not able to connect or authenticate with the remote host for any reason the host will render in red with lightning-bold glyph:
+
+   plait -h root@nosuchhost uname
+   \u26a1  root@nosuchhost
+   DNS lookup failed: address 'nosuchhost' not found: [Errno -2] Name or service not known.

@@ -121,7 +121,6 @@ def timeout(t, original):
             d.errback(TimeoutError(t))
 
     def errback(failure):
-        print "FAILURE", failure
         if timeout and not timeout.called:
             timeout.cancel()
         if not d.called and not failure.check(CancelledError):
